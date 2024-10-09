@@ -3,7 +3,7 @@
 # MODIFY THE FOLLOWING:
 export ENV=CRAY                         # Options: CRAY, GNU, INTEL
 export WRF_VERSION="release-v4.6.0"     # Available releases at https://github.com/wrf-model/WRF/branches/all?query=release
-export WRF_LABEL="genoaaa"                # Add a label to the compilation directory created
+export WRF_LABEL="genoa"                # Add a label to the compilation directory created
 export CONTINUE=false                   # Set to 'true' to continue an existing compilation, or 'false' to start fresh
 export SRC_DIR="WRF_SRC_${WRF_LABEL}"   # Directory according to the environment. This directory is not modified; the code will be copied before being compiled.
 
