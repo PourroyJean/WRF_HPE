@@ -51,7 +51,7 @@ The `compile.sbatch` script handles the following tasks:
 ## Important Notes
 
 - Make sure you have the required permissions and access to the necessary modules and compilers on your HPE system.
-- The compilation process may take a significant amount of time, depending on your system's resources and the WRF configuration (Cray compiler more thant 4 hours)
+- The compilation process may take a significant amount of time, depending on your system's resources and the WRF configuration (Cray compiler can last more than 4 hours)
 - If you encounter any issues during compilation, check the Slurm job output file for error messages and consult the WRF documentation or your system administrator for assistance.
 
 ## Customization
