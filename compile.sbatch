@@ -10,24 +10,27 @@
 #SBATCH --exclusive
 
 ############# MODULES  ######################
-# Load appropriate modules based on the selected environment
+# Load appropriate modules based on the selected environment : 
+# TODO : module purge and load the correct modules manually
 if [ "$ENV" == "GNU" ]; then
     module swap PrgEnv-cray PrgEnv-gnu/8.5.0
 elif [ "$ENV" == "INTEL" ]; then
     module swap PrgEnv-cray PrgEnv-intel/8.5.0
+elif [ "$ENV" == "AOCC" ]; then
+    module swap PrgEnv-cray PrgEnv-aocc/8.5.0
+    module swap cray-mpich/8.1.27 cray-mpich/8.1.28     # TODO : after upgrade this should not be needed  
 elif [ "$ENV" == "CRAY" ]; then
-    # Cray environment is already loaded by default TODO : check if the modules are loaded
+    # Cray environment is already loaded by default
     :
 fi
+
 # Common modules
 module load cray-hdf5
 module load cray-netcdf
 module load cray-parallel-netcdf
 module load craype-x86-genoa
 module load flex/2.6.4
-module list
 
-# TODO module purge
 
 ########### CPE compilers ####################
 export CC=cc
@@ -57,9 +60,10 @@ export WRF_EM_CORE=1
 
 
 # Construct the directory name based on ENV + COMPILER
-[ "$ENV" == "GNU" ]   && COMPILER_VERSION=$(cc --version | grep -m 1 'gcc'    | grep -oP '\d+\.\d+\.\d+')
-[ "$ENV" == "CRAY" ]  && COMPILER_VERSION=$(cc --version | grep -m 1 'clang'  | grep -oP '\d+\.\d+\.\d+')
+[ "$ENV" == "GNU"   ] && COMPILER_VERSION=$(cc --version | grep -m 1 'gcc'    | grep -oP '\d+\.\d+\.\d+')
+[ "$ENV" == "CRAY"  ] && COMPILER_VERSION=$(cc --version | grep -m 1 'clang'  | grep -oP '\d+\.\d+\.\d+')
 [ "$ENV" == "INTEL" ] && COMPILER_VERSION=$(cc --version | grep -m 1 'oneAPI' | grep -oP '\d+\.\d+\.\d+' | head -n 1)
+[ "$ENV" == "AOCC"  ] && COMPILER_VERSION=$(cc --version | grep -m 1 'clang'  | grep -oP '\d+\.\d+\.\d+' | head -n 1)
 DIR=WRF_${WRF_VERSION}_CHEM_${ENV}_${COMPILER_VERSION}_${WRF_LABEL}
 LOG_FILE="compile_${DIR}.log"
 
@@ -68,7 +72,10 @@ LOG_FILE="compile_${DIR}.log"
 # GNU     34      35
 # INTEL   50      51        
 # CRAY    46      47
+# AOCC    34      35  # Using the same as GNU for now
 if [ "$ENV" == "GNU" ]; then
+    code=34
+elif [ "$ENV" == "AOCC" ]; then
     code=34
 elif [ "$ENV" == "CRAY" ]; then
     code=46
@@ -88,8 +95,16 @@ echo " - WRF_CHEM    = $WRF_CHEM"
 echo " - WRF_KPP     = $WRF_KPP"
 echo "====================="
 
-# Copy sources only if we start a new compilation
+echo " -- MODULE LIST --"
+module list
+if ! module list 2>&1 | grep -iq "PrgEnv-${ENV}"; then
+    echo "Error: The loaded PrgEnv does not match the ENV variable ($ENV)"
+    exit 1
+fi
+
+# Copy sources + configure only if we start a new compilation
 if [ "$CONTINUE" == "false" ]; then
+    rm -rf $DIR
     cp -r $SRC_DIR $DIR
     cd $DIR
     ./configure <<EOF
@@ -101,7 +116,7 @@ else
 fi
 
 
-## CPE WRAPPERS : Cray configuration already use the wrappers
+## CPE WRAPPERS 
 CONFIGURE_FILE=./configure.wrf
 sed -i 's/gcc/cc/' $CONFIGURE_FILE 
 sed -i 's/mpicc/cc/' $CONFIGURE_FILE
@@ -110,7 +125,6 @@ sed -i 's/mpif90/ftn/' $CONFIGURE_FILE
  
 ## MANUAL MODIFICATIONS : 
 sed -i 's/# -DRSL0_ONLY/-DRSL0_ONLY/g' ./configure.wrf  # Only use one ouput RSL file during the execution
-
 
 # OMP Version
 # TODO : Set OMPCC to –fopenmp (clang) instead of –homp (CCE now uses clang for C compiler)
@@ -122,6 +136,17 @@ if [ "$ENV" == "GNU" ]; then
     # KPP
     sed -i 's/-ll //' chem/KPP/kpp/kpp-2.1/src/Makefile                                                     # Remove the linking to the libl library (-ll) from the Makefile
     sed -i 's|^YACC=.*|YACC="/usr/bin/yacc -d"|' chem/KPP/configure_kpp                                     # Replace the YACC definition with /usr/bin/yacc -d in the configure_kpp file
+elif [ "$ENV" == "AOCC" ]; then
+    echo "AMD compilation..."
+    # AMD-specific modifications
+    sed -i 's/^DM_CC.*/DM_CC           =       cc/' $CONFIGURE_FILE                                         # Update DM_CC to use "cc" compiler and remove "-cc=$(SCC)" from the configuration
+    #Errors:
+    sed -i '/^BYTESWAPIO/s/-fconvert=big-endian//' $CONFIGURE_FILE
+    sed -i '/^CFLAGS_LOCAL/s/-w//' $CONFIGURE_FILE
+    sed -i '/^FCBASEOPTS_NO_G/s/-w//' $CONFIGURE_FILE
+    #Warnings:
+    sed -i '/^FORMAT_FREE/s/-ffree-line-length-none//' $CONFIGURE_FILE
+    sed -i '/^BYTESWAPIO/s/-frecord-marker=4//' $CONFIGURE_FILE
 elif [ "$ENV" == "INTEL" ]; then
     sed -i 's/^DM_CC.*/DM_CC = cc/' $CONFIGURE_FILE
     sed -i '/FCOPTIM/s/-O3/-O3 -fp-model precise/' $CONFIGURE_FILE

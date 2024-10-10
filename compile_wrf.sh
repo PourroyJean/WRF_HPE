@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # MODIFY THE FOLLOWING:
-export ENV=CRAY                         # Options: CRAY, GNU, INTEL
+export ENV=AOCC                          # Options: CRAY, GNU, INTEL, AOCC
 export WRF_VERSION="release-v4.6.0"     # Available releases at https://github.com/wrf-model/WRF/branches/all?query=release
 export WRF_LABEL="genoa"                # Add a label to the compilation directory created
 export CONTINUE=false                   # Set to 'true' to continue an existing compilation, or 'false' to start fresh
-export SRC_DIR="WRF_SRC_${WRF_LABEL}"   # Directory according to the environment. This directory is not modified; the code will be copied before being compiled.
+export SRC_DIR="WRF_SRC_${WRF_VERSION}" # Directory according to the environment. This directory is not modified; the code will be copied before being compiled.
 
 
 # Only if we start a new compilation : download the sources corresponding to the PrgEnv selected
 if [ "$CONTINUE" == "false" ]; then
   rm -rf $SRC_DIR
   echo "Fetching WRF $WRF_VERSION sources for $ENV in $SRC_DIR..."
-  if [ "$ENV" == "GNU" ] || [ "$ENV" == "INTEL" ]; then
+  if [ "$ENV" == "GNU" ] || [ "$ENV" == "INTEL" ] || [ "$ENV" == "AOCC" ]; then
       git clone --branch $WRF_VERSION --single-branch --depth 1  https://github.com/wrf-model/WRF.git $SRC_DIR
   elif [ "$ENV" == "CRAY" ]; then
       # HPE modification of WRF source code for PrgEnv-Cray
@@ -21,7 +21,7 @@ if [ "$CONTINUE" == "false" ]; then
       git checkout 8927d999a22f9f40636e0ea3be2f1ef474d2228f
       cd ..
   else
-      echo "Error: Unknown environment '$ENV'. Please set ENV to 'CRAY', 'GNU', or 'INTEL'"
+      echo "Error: Unknown environment '$ENV'. Please set ENV to 'CRAY', 'GNU', 'INTEL', or 'AOCC'"
       exit 1
   fi
   # Download submodules in advance since compute nodes lack Internet access: the '/phys/noahmp' submodule must be downloaded in advance
