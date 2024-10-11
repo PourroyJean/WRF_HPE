@@ -16,7 +16,7 @@ if [ "$CONTINUE" == "false" ]; then
       git clone --branch $WRF_VERSION --single-branch --depth 1  https://github.com/wrf-model/WRF.git $SRC_DIR
   elif [ "$ENV" == "CRAY" ]; then
       # HPE modification of WRF source code for PrgEnv-Cray
-      git clone --branch $WRF_VERSION --single-branch --depth 1 https://github.com/mirekand/WRF_cce18.git $SRC_DIR
+      git clone --branch $WRF_VERSION-cray --single-branch --depth 1 https://github.com/mirekand/WRF_cce18.git $SRC_DIR
       cd $SRC_DIR
       git checkout 8927d999a22f9f40636e0ea3be2f1ef474d2228f
       cd ..
